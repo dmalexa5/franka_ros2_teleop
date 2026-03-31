@@ -51,8 +51,16 @@ Clone the repo, open the folder in VS Code and reopen the folder as container.
 
 Now modify the config files as described above.
 
-In a terminal, build the ROS 2 workspace by navigating to `/home/franka/ros2ws/` and executing `colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release`.
+The container is intentionally passive and does not auto-launch teleoperation on startup.
+
+In a terminal, build the ROS 2 workspace by navigating to `/home/franka/ros2_ws/` and executing `colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release`.
 After building the workspace, source it using: `source install/setup.bash`
+
+If you want to launch teleoperation manually from inside the container, first extract the config section from `docker-compose.yml` and then launch ROS 2:
+
+`yq eval '.x-teleop-config' /config.yml > /tmp/franka_ros2_teleop_config.yaml`
+
+`ros2 launch franka_ros2_teleop teleop.launch.py robot_config_file:=/tmp/franka_ros2_teleop_config.yaml`
 
 You can now launch the teleoperation.
 

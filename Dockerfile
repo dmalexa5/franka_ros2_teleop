@@ -45,7 +45,8 @@ FROM devcontainer AS application
 
 COPY . src/franka_ros2_teleop/
 
-RUN source /opt/ros/${ROS_DISTRIBUTION}/setup.bash && colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+RUN source /opt/ros/${ROS_DISTRIBUTION}/setup.bash 
+# && colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 USER root
 
@@ -56,6 +57,5 @@ RUN wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${TAR
 
 USER $USERNAME
 
-ENTRYPOINT ["/bin/bash", "-l", "-c", "yq eval '.x-teleop-config' /config.yml > /tmp/franka_ros2_teleop_config.yaml && ros2 launch franka_ros2_teleop teleop.launch.py robot_config_file:=/tmp/franka_ros2_teleop_config.yaml \"$@\""]
-
+CMD ["/bin/bash", "-l"]
 

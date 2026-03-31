@@ -2,15 +2,18 @@ x-teleop-config:
   pairs:
     - namespace: franka_ros2_teleop
       leader:
-        robot_ip: enter_leader_ip_here
+        robot_ip: 192.168.1.15
       follower:
-        robot_ip: enter_follower_ip_here
+        robot_ip: 192.168.1.11
 
 services:
   franka_ros2_teleop:
     image: ghcr.io/frankarobotics/franka_ros2_teleop:main
     build:
       target: application
+    command: /bin/sh -c "while sleep 1000; do :; done"
+    stdin_open: true
+    tty: true
     volumes:
       - type: bind
         # If you change the name of this file, update the source path accordingly.
