@@ -20,6 +20,7 @@
 #include <Eigen/Eigen>
 #include <franka_ros2_teleop/teleop_follower_controller.hpp>
 #include <franka_ros2_teleop/utils.hpp>
+#include <rclcpp/qos.hpp>
 
 namespace franka_ros2_teleop
 {
@@ -149,7 +150,7 @@ CallbackReturn TeleopFollowerController::on_configure(
 
   measured_joint_states_from_leader_subscriber_ =
     this->get_node()->create_subscription<sensor_msgs::msg::JointState>(
-    input_topic_, rclcpp::SystemDefaultsQoS(),
+    input_topic_, rclcpp::QoS(1).best_effort(),
     [this](const sensor_msgs::msg::JointState::SharedPtr msg) {
       // check if message is correct size, if not ignore
       if (msg->position.size() == teleop_utils::NUM_JOINTS) {

@@ -104,7 +104,6 @@ def generate_robot_nodes(context):
             executable="spawner",
             namespace=namespace,
             arguments=["franka_robot_state_broadcaster"],
-            parameters=[{"arm_id": LaunchConfiguration("arm_id").perform(context)}],
             condition=UnlessCondition(LaunchConfiguration("use_fake_hardware")),
             output="screen",
         ),

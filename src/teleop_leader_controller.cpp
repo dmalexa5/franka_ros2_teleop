@@ -18,6 +18,7 @@
 
 #include <franka_ros2_teleop/teleop_leader_controller.hpp>
 #include <franka_ros2_teleop/utils.hpp>
+#include <rclcpp/qos.hpp>
 
 namespace franka_ros2_teleop
 {
@@ -129,7 +130,7 @@ CallbackReturn TeleopLeaderController::on_configure(
   if (use_input_topic_) {
     external_joint_torques_from_follower_subscriber_ =
       this->get_node()->create_subscription<sensor_msgs::msg::JointState>(
-      input_topic_, rclcpp::SystemDefaultsQoS(),
+      input_topic_, rclcpp::QoS(1).best_effort(),
       [this](const sensor_msgs::msg::JointState::SharedPtr msg) {
         if (msg->effort.size() == teleop_utils::NUM_JOINTS) {
           external_joint_torques_from_follower_buffer_ptr_.writeFromNonRT(msg);

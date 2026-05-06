@@ -21,8 +21,10 @@ from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
     OpaqueFunction,
-    ExecuteProcess
+    ExecuteProcess,
+    RegisterEventHandler
 )
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     LaunchConfiguration,
@@ -271,7 +273,7 @@ def add_pair(pair_config) -> List[LaunchDescriptionEntity]:
         output='both',
     )
 
-    launch_config = [teleop_coordinator_node]
+    launch_config = []
 
     leader_config = pair_config.pop('leader')
     follower_config = pair_config.pop('follower')
@@ -279,26 +281,76 @@ def add_pair(pair_config) -> List[LaunchDescriptionEntity]:
     # Create the launch configuration for the leader robot
     resolved_leader_config = pair_config | leader_config
 
-    launch_config.extend(
-        add_robot_launch_config(
-            resolved_leader_config,
-            leader_namespace,
-            f"/{follower_namespace}/{LEADER_INPUT_TOPIC}",
-            LEADER_CONTROLLER_NAME,
-        )
+    leader_launch_config = add_robot_launch_config(
+        resolved_leader_config,
+        leader_namespace,
+        f"/{follower_namespace}/{LEADER_INPUT_TOPIC}",
+        LEADER_CONTROLLER_NAME,
     )
 
     # Create the launch configuration for the follower robot
     resolved_follower_config = pair_config | follower_config
 
-    launch_config.extend(
-        add_robot_launch_config(
-            resolved_follower_config,
-            follower_namespace,
-            f"/{leader_namespace}/{FOLLOWER_INPUT_TOPIC}",
-            FOLLOWER_CONTROLLER_NAME
+    follower_launch_config = add_robot_launch_config(
+        resolved_follower_config,
+        follower_namespace,
+        f"/{leader_namespace}/{FOLLOWER_INPUT_TOPIC}",
+        FOLLOWER_CONTROLLER_NAME
+    )
+
+    ready_processes = {
+        (leader_namespace, 'franka_robot_state_broadcaster'): resolved_leader_config[
+            FAKE_HARDWARE_KEY
+        ],
+        (follower_namespace, 'franka_robot_state_broadcaster'): resolved_follower_config[
+            FAKE_HARDWARE_KEY
+        ],
+        (leader_namespace, LEADER_CONTROLLER_NAME): False,
+        (follower_namespace, FOLLOWER_CONTROLLER_NAME): False,
+    }
+    coordinator_started = {'value': False}
+
+    def start_coordinator_when_ready(event, _context):
+        if coordinator_started['value'] or event.returncode != 0:
+            return None
+
+        cmd = [str(part) for part in event.cmd]
+        cmd_text = ' '.join(cmd)
+        if not any(part.endswith('/spawner') or part == 'spawner' for part in cmd):
+            return None
+
+        for (namespace, controller_name), is_ready in ready_processes.items():
+            if is_ready:
+                continue
+
+            namespace_matches = (
+                f'__ns:=/{namespace}' in cmd_text or f'__ns:={namespace}' in cmd_text
+            )
+            controller_matches = controller_name in cmd
+            if controller_name in (LEADER_CONTROLLER_NAME, FOLLOWER_CONTROLLER_NAME):
+                controller_matches = (
+                    controller_matches and 'move_to_start_example_controller' in cmd
+                )
+
+            if namespace_matches and controller_matches:
+                ready_processes[(namespace, controller_name)] = True
+                break
+
+        if all(ready_processes.values()):
+            coordinator_started['value'] = True
+            return [teleop_coordinator_node]
+
+        return None
+
+    launch_config.append(
+        RegisterEventHandler(
+            OnProcessExit(
+                on_exit=start_coordinator_when_ready,
+            )
         )
     )
+    launch_config.extend(leader_launch_config)
+    launch_config.extend(follower_launch_config)
 
     if resolved_follower_config[LOAD_GRIPPER_KEY]:
         teleop_gripper_node = Node(
